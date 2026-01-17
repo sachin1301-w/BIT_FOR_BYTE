@@ -8,12 +8,26 @@
     <p class="text-center" style="color: #64748b; margin-bottom: 1rem;">
         We've sent a verification code to <strong style="color: #1e3c72;">{{ email }}</strong>
     </p>
+    {% if session.get('demo_otp') %}
+    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3); text-align: center;">
+        <p style="margin: 0 0 0.5rem 0; color: #ffffff; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+            🔐 Your OTP Code (For Demo/Judges)
+        </p>
+        <p style="margin: 0; color: #ffffff; font-size: 2.5rem; font-weight: 700; letter-spacing: 0.5rem; font-family: 'Courier New', monospace;">
+            {{ session.get('demo_otp') }}
+        </p>
+        <p style="margin: 0.5rem 0 0 0; color: #d1fae5; font-size: 0.8rem;">
+            ⏰ Valid for 10 minutes • Do not share
+        </p>
+    </div>
+    {% else %}
     <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; border-left: 4px solid #2a5298;">
         <p style="margin: 0; color: #334155; text-align: center; font-size: 0.95rem;">
             💡 <strong>Check the terminal/console</strong> where the app is running<br>
             <span style="font-size: 0.85rem; color: #64748b;">The OTP code is displayed there for demo purposes</span>
         </p>
     </div>
+    {% endif %}
     <form method="POST">
         <div class="form-group">
             <label for="otp">Enter OTP Code</label>

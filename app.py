@@ -52,7 +52,7 @@ def load_model():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 def init_sample_data():
@@ -171,7 +171,10 @@ def register():
         otp_code = create_otp(email, otp_type='register')
         send_otp_email(email, otp_code, purpose="registration")
         
-        flash("OTP sent to your email! Check console for demo.", "success")
+        # Store OTP in session for display to judges
+        session['demo_otp'] = otp_code
+        
+        flash(f"OTP sent! For demo: Your OTP is {otp_code}", "success")
         return redirect(url_for('verify_registration'))
     
     return render_template("register.html")
@@ -233,7 +236,10 @@ def login():
             otp_code = create_otp(email, otp_type='login')
             send_otp_email(email, otp_code, purpose="login")
             
-            flash("OTP sent to your email! Check console for demo.", "success")
+            # Store OTP in session for display to judges
+            session['demo_otp'] = otp_code
+            
+            flash(f"OTP sent! For demo: Your OTP is {otp_code}", "success")
             return redirect(url_for('verify_login'))
         else:
             flash("Invalid email or password!", "error")
@@ -253,8 +259,8 @@ def verify_login():
         success, message = verify_otp(email, otp_code, otp_type='login')
         
         if success:
-            user = User.query.get(session.get('login_user_id'))
-            user.last_login = datetime.utcnow()
+            user = db.session.get(User, session.get('login_user_id'))
+            user.last_login = datetime.now(datetime.UTC)
             db.session.commit()
             
             login_user(user, remember=True)
@@ -828,14 +834,14 @@ def admin_dashboard():
     total_predictions = Prediction.query.count()
     
     # New users today
-    today = datetime.utcnow().date()
+    today = datetime.now(datetime.UTC).date()
     new_users_today = User.query.filter(func.date(User.created_at) == today).count()
     
     # Predictions today
     predictions_today = Prediction.query.filter(func.date(Prediction.created_at) == today).count()
     
     # Approval rate (last 30 days)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(datetime.UTC) - timedelta(days=30)
     recent_predictions = Prediction.query.filter(Prediction.created_at >= thirty_days_ago).all()
     if recent_predictions:
         approved = sum(1 for p in recent_predictions if p.result == 'Approved')
@@ -871,7 +877,7 @@ def admin_dashboard():
         'response_times': []
     }
     for i in range(24):
-        hour_start = datetime.utcnow() - timedelta(hours=24-i)
+        hour_start = datetime.now(datetime.UTC) - timedelta(hours=24-i)
         hour_end = hour_start + timedelta(hours=1)
         hour_logs = PerformanceLog.query.filter(
             PerformanceLog.timestamp >= hour_start,
@@ -892,7 +898,7 @@ def admin_dashboard():
         'predictions': []
     }
     for i in range(7):
-        day = datetime.utcnow().date() - timedelta(days=6-i)
+        day = datetime.now(datetime.UTC).date() - timedelta(days=6-i)
         activity_data['days'].append(day.strftime('%m/%d'))
         
         new_users = User.query.filter(func.date(User.created_at) == day).count()

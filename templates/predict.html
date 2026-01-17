@@ -174,7 +174,7 @@
                     padding: 1.5rem; border-radius: 10px; margin: 1rem 0; border-left: 4px solid {% if rec.priority == 'high' %}#ffc107{% elif rec.priority == 'medium' %}#17a2b8{% else %}#28a745{% endif %};">
             <h4 style="margin: 0 0 1rem 0;">{{ rec.icon }} {{ rec.title }}</h4>
             <ul style="margin: 0; padding-left: 1.5rem;">
-                {% for item in rec.items %}
+                {% for item in rec['items'] %}
                 <li style="margin: 0.5rem 0;">{{ item }}</li>
                 {% endfor %}
             </ul>
