@@ -42,7 +42,12 @@ def verify_otp(email, otp_code, otp_type='login'):
     if not otp_record:
         return False, "Invalid OTP"
     
-    if datetime.now(timezone.utc) > otp_record.expires_at:
+    # Make expires_at timezone-aware if it's naive (for backward compatibility)
+    expires_at = otp_record.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if datetime.now(timezone.utc) > expires_at:
         return False, "OTP has expired"
     
     # Mark OTP as used
