@@ -16,6 +16,11 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     
+    # Gamification
+    points = db.Column(db.Integer, default=0)
+    badges = db.Column(db.Text, default='[]')  # JSON array of badges
+    theme_preference = db.Column(db.String(20), default='light')
+    
     # Relationships
     predictions = db.relationship('Prediction', backref='user', lazy=True)
     

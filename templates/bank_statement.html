@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Bank Statement Analysis - Loan Prediction{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <h2 style="margin-bottom: 1rem; color: var(--text-primary);">🏦 Bank Statement Analyzer</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 2rem;">Upload your bank statement for automatic data extraction (PDF or Image)</p>
+    
+    <div style="border: 3px dashed var(--input-border); padding: 3rem; text-align: center; border-radius: 10px; margin-bottom: 2rem; background: var(--input-bg);" id="dropZone">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📄</div>
+        <p style="color: var(--text-primary); margin-bottom: 1rem; font-weight: 600;">Drag & Drop your statement here</p>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">or</p>
+        <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" onchange="handleFile()">
+        <button onclick="document.getElementById('fileInput').click()" class="btn btn-primary">Choose File</button>
+        <p style="color: var(--text-secondary); margin-top: 1rem; font-size: 0.9rem;">Supports PDF, JPG, PNG (max 10MB)</p>
+    </div>
+    
+    <div id="loading" style="display: none; text-align: center; padding: 2rem;">
+        <div class="spinner" style="margin: 0 auto;"></div>
+        <p style="color: var(--text-secondary); margin-top: 1rem;">Analyzing your statement...</p>
+    </div>
+    
+    <div id="results" style="display: none;">
+        <h3 style="color: var(--text-primary); margin-bottom: 1rem;">✅ Analysis Complete</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+                <h4 style="margin: 0 0 0.5rem 0;">Monthly Income</h4>
+                <p style="margin: 0; font-size: 2rem; font-weight: bold;" id="monthlyIncome">--</p>
+            </div>
+            <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+                <h4 style="margin: 0 0 0.5rem 0;">Average Balance</h4>
+                <p style="margin: 0; font-size: 2rem; font-weight: bold;" id="avgBalance">--</p>
+            </div>
+        </div>
+        
+        <div style="background: var(--input-bg); padding: 1.5rem; border-radius: 10px; margin-bottom: 1rem;">
+            <h4 style="color: var(--text-primary); margin-bottom: 1rem;">Transaction Summary</h4>
+            <p style="color: var(--text-secondary); margin: 0.5rem 0;">Credit Transactions: <strong id="creditCount">--</strong></p>
+            <p style="color: var(--text-secondary); margin: 0.5rem 0;">Debit Transactions: <strong id="debitCount">--</strong></p>
+            <p style="color: var(--text-secondary); margin: 0.5rem 0;">Recurring EMIs: <strong id="recurringEMI">--</strong></p>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1.5rem; border-radius: 10px; color: white; margin-bottom: 1rem;">
+            <h4 style="margin: 0 0 0.5rem 0;">💡 Suggested Loan Amount</h4>
+            <p style="margin: 0; font-size: 2.5rem; font-weight: bold;" id="suggestedLoan">--</p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">Based on your financial profile</p>
+        </div>
+        
+        <div style="text-align: center;">
+            <button onclick="autofillForm()" class="btn btn-primary">Auto-fill Prediction Form</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .spinner {
+        border: 4px solid rgba(42, 82, 152, 0.1);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border-left-color: #2a5298;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    #dropZone.drag-over {
+        background: rgba(42, 82, 152, 0.1);
+        border-color: #2a5298;
+    }
+</style>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+    });
+    
+    dropZone.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            uploadFile(files[0]);
+        }
+    }
+    
+    function handleFile() {
+        const file = document.getElementById('fileInput').files[0];
+        if (file) {
+            uploadFile(file);
+        }
+    }
+    
+    async function uploadFile(file) {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('results').style.display = 'none';
+        
+        const formData = new FormData();
+        formData.append('statement', file);
+        
+        try {
+            const response = await fetch('/bank-statement', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            setTimeout(() => {
+                displayResults(result.data);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            }, 1500);
+        } catch (error) {
+            alert('Error analyzing statement. Please try again.');
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+    
+    function displayResults(data) {
+        document.getElementById('monthlyIncome').textContent = '₹' + data.monthly_income.toLocaleString('en-IN');
+        document.getElementById('avgBalance').textContent = '₹' + data.average_balance.toLocaleString('en-IN');
+        document.getElementById('creditCount').textContent = data.credit_transactions;
+        document.getElementById('debitCount').textContent = data.debit_transactions;
+        document.getElementById('recurringEMI').textContent = '₹' + data.recurring_emis.toLocaleString('en-IN');
+        document.getElementById('suggestedLoan').textContent = '₹' + data.suggested_loan_amount.toLocaleString('en-IN');
+        
+        window.extractedData = data;
+    }
+    
+    function autofillForm() {
+        if (window.extractedData) {
+            sessionStorage.setItem('bankData', JSON.stringify(window.extractedData));
+            window.location.href = '/predict';
+        }
+    }
+</script>
+{% endblock %}

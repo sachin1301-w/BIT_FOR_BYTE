@@ -6,6 +6,8 @@ from datetime import datetime
 from models import db, User, OTP, Prediction
 from otp_utils import create_otp, verify_otp, send_otp_email
 from utils import generate_recommendations, calculate_feature_importance, export_to_pdf, export_to_excel
+from gamification import award_badge, get_user_badges, check_and_award_badges, BADGES
+from chatbot import get_chatbot_response, get_loan_advice
 import os
 import json
 
@@ -210,6 +212,9 @@ def dashboard():
     # Recent predictions for quick view
     recent_predictions = user_predictions[:5]
     
+    # Get user badges
+    user_badges = get_user_badges(current_user)
+    
     # Chart data for analytics
     chart_data = {
         'approval_trend': [],
@@ -239,7 +244,9 @@ def dashboard():
                          total_predictions=total_predictions,
                          approved_count=approved_count,
                          approval_rate=approval_rate,
-                         chart_data=json.dumps(chart_data))
+                         chart_data=json.dumps(chart_data),
+                         user_badges=user_badges[:3],
+                         user_points=current_user.points)
 
 
 @app.route("/predict", methods=["GET", "POST"])
@@ -307,6 +314,22 @@ def predict():
     
     db.session.add(new_prediction)
     db.session.commit()
+    
+    # Award badges
+    all_predictions = Prediction.query.filter_by(user_id=current_user.id).all()
+    new_badges = check_and_award_badges(current_user, all_predictions)
+    
+    # Check for approval badge
+    if prediction == 1:
+        badge = award_badge(current_user, 'approved_once')
+        if badge:
+            new_badges.append(badge)
+    
+    # Check for high CIBIL badge
+    if cibil_score >= 750:
+        badge = award_badge(current_user, 'high_score')
+        if badge:
+            new_badges.append(badge)
 
     # Generate recommendations
     pred_data = {
@@ -331,7 +354,7 @@ def predict():
         recommendations=recommendations,
         tips=tips,
         feature_importance=feature_importance,
-        prediction_id=new_prediction.id
+        new_badges=new_badges
     )
 
 
@@ -429,6 +452,9 @@ def calculate_eligibility():
     """Quick eligibility check API"""
     data = request.get_json()
     
+    # Award calculator badge
+    award_badge(current_user, 'calculator_user')
+    
     income = float(data.get('income', 0))
     cibil = int(data.get('cibil', 0))
     loan_amount = float(data.get('loan_amount', 0))
@@ -468,6 +494,149 @@ def calculate_eligibility():
         'feedback': feedback,
         'recommendation': "Proceed with full application" if score >= 70 else "Consider improving factors"
     })
+
+
+@app.route("/chatbot", methods=["GET", "POST"])
+@login_required
+def chatbot():
+    if request.method == "GET":
+        return render_template("chatbot.html")
+    
+    data = request.get_json()
+    message = data.get('message', '')
+    
+    # Get user context
+    last_prediction = Prediction.query.filter_by(user_id=current_user.id).order_by(Prediction.created_at.desc()).first()
+    context = {
+        'username': current_user.username,
+        'last_prediction': last_prediction.result if last_prediction else None
+    }
+    
+    response = get_chatbot_response(message, context)
+    return jsonify({'response': response})
+
+
+@app.route("/simulator", methods=["GET", "POST"])
+@login_required
+def simulator():
+    if request.method == "GET":
+        return render_template("simulator.html")
+    
+    # Load model if not loaded
+    load_model()
+    
+    data = request.get_json()
+    
+    # Get values from request
+    no_of_dependents = int(data.get('dependents', 0))
+    education = data.get('education', 'Graduate')
+    self_employed = data.get('self_employed', 'No')
+    income_annum = float(data.get('income', 300000))
+    loan_amount = float(data.get('loan_amount', 500000))
+    loan_term = int(data.get('loan_term', 12))
+    cibil_score = int(data.get('cibil_score', 700))
+    residential_assets_value = float(data.get('residential_assets', 0))
+    commercial_assets_value = float(data.get('commercial_assets', 0))
+    luxury_assets_value = float(data.get('luxury_assets', 0))
+    bank_asset_value = float(data.get('bank_assets', 0))
+    
+    education_val = 1 if education == "Graduate" else 0
+    self_employed_val = 1 if self_employed == "Yes" else 0
+    
+    input_data = np.array([[
+        no_of_dependents,
+        education_val,
+        self_employed_val,
+        income_annum,
+        loan_amount,
+        loan_term,
+        cibil_score,
+        residential_assets_value,
+        commercial_assets_value,
+        luxury_assets_value,
+        bank_asset_value
+    ]])
+    
+    input_data_scaled = scaler.transform(input_data)
+    prediction = rf.predict(input_data_scaled)[0]
+    probability = rf.predict_proba(input_data_scaled)[0][1] * 100
+    
+    pred_data = {
+        'cibil_score': cibil_score,
+        'income_annum': income_annum,
+        'loan_amount': loan_amount,
+        'residential_assets_value': residential_assets_value,
+        'commercial_assets_value': commercial_assets_value,
+        'luxury_assets_value': luxury_assets_value,
+        'bank_asset_value': bank_asset_value,
+        'education': education,
+        'self_employed': self_employed
+    }
+    
+    advice = get_loan_advice(pred_data)
+    
+    return jsonify({
+        'approved': bool(prediction),
+        'probability': round(probability, 2),
+        'advice': advice
+    })
+
+
+@app.route("/bank-statement", methods=["GET", "POST"])
+@login_required
+def bank_statement():
+    if request.method == "GET":
+        return render_template("bank_statement.html")
+    
+    # Handle file upload
+    if 'statement' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['statement']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # For demo: simulate data extraction
+    # In production, use OCR/PDF parsing
+    extracted_data = {
+        'monthly_income': 45000,
+        'average_balance': 125000,
+        'recurring_emis': 8500,
+        'credit_transactions': 12,
+        'debit_transactions': 45,
+        'suggested_loan_amount': 400000,
+        'confidence': 85
+    }
+    
+    badge = award_badge(current_user, 'export_expert')
+    
+    return jsonify({
+        'success': True,
+        'data': extracted_data,
+        'message': 'Statement analyzed successfully',
+        'badge': badge
+    })
+
+
+@app.route("/toggle-theme", methods=["POST"])
+@login_required
+def toggle_theme():
+    data = request.get_json()
+    theme = data.get('theme', 'light')
+    current_user.theme_preference = theme
+    db.session.commit()
+    return jsonify({'success': True, 'theme': theme})
+
+
+@app.route("/badges")
+@login_required
+def badges():
+    user_badges = get_user_badges(current_user)
+    all_badges = [{'key': k, **v} for k, v in BADGES.items()]
+    return render_template("badges.html", 
+                          user_badges=user_badges, 
+                          all_badges=all_badges,
+                          user_points=current_user.points)
 
 
 if __name__ == "__main__":

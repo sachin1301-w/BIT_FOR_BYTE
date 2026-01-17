@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}AI Chatbot - Loan Prediction{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 900px; margin: 0 auto;">
+    <h2 style="margin-bottom: 2rem; color: var(--text-primary);">🤖 AI Loan Assistant</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 2rem;">Ask me anything about loans, credit scores, or financial advice!</p>
+    
+    <div id="chatContainer" style="height: 500px; overflow-y: auto; border: 2px solid var(--input-border); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; background: var(--input-bg);">
+        <div class="chat-message bot-message">
+            <strong>🤖 AI Assistant:</strong>
+            <p>Hello! I'm your loan advisor. I can help with questions about CIBIL scores, loan rejections, approval tips, required documents, and more. How can I assist you today?</p>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 1rem;">
+        <input type="text" id="userMessage" placeholder="Type your question here..." style="flex: 1; padding: 1rem; border-radius: 10px; border: 2px solid var(--input-border);" onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()" class="btn btn-primary">Send</button>
+    </div>
+    
+    <div style="margin-top: 1rem;">
+        <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Quick Questions:</h4>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button onclick="askQuestion('Why was my loan rejected?')" class="quick-btn">Why rejected?</button>
+            <button onclick="askQuestion('How to improve CIBIL score?')" class="quick-btn">Improve CIBIL</button>
+            <button onclick="askQuestion('What documents do I need?')" class="quick-btn">Documents needed</button>
+            <button onclick="askQuestion('How is approval calculated?')" class="quick-btn">Approval factors</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .chat-message {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .bot-message {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        margin-right: 20%;
+    }
+    
+    [data-theme="dark"] .bot-message {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2a5298 100%);
+    }
+    
+    .user-message {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        margin-left: 20%;
+        text-align: right;
+    }
+    
+    [data-theme="dark"] .user-message {
+        background: linear-gradient(135deg, #4a148c 0%, #6a1b9a 100%);
+    }
+    
+    .quick-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid var(--input-border);
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .quick-btn:hover {
+        background: #2a5298;
+        color: white;
+        border-color: #2a5298;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    function addMessage(text, isUser) {
+        const container = document.getElementById('chatContainer');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
+        messageDiv.innerHTML = `<strong>${isUser ? '👤 You:' : '🤖 AI Assistant:'}</strong><p>${text}</p>`;
+        container.appendChild(messageDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    async function sendMessage() {
+        const input = document.getElementById('userMessage');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        addMessage(message, true);
+        input.value = '';
+        
+        try {
+            const response = await fetch('/chatbot', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: message})
+            });
+            
+            const data = await response.json();
+            addMessage(data.response, false);
+        } catch (error) {
+            addMessage('Sorry, I encountered an error. Please try again.', false);
+        }
+    }
+    
+    function askQuestion(question) {
+        document.getElementById('userMessage').value = question;
+        sendMessage();
+    }
+</script>
+{% endblock %}

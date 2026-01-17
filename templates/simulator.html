@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Credit Score Simulator - Loan Prediction{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 1000px; margin: 0 auto;">
+    <h2 style="margin-bottom: 1rem; color: var(--text-primary);">📊 Credit Score Simulator</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 2rem;">Adjust your financial parameters to see how they affect loan approval</p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <!-- Input Section -->
+        <div>
+            <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Adjust Parameters</h3>
+            
+            <div class="form-group">
+                <label>Annual Income: ₹<span id="incomeDisplay">500000</span></label>
+                <input type="range" id="income" min="100000" max="5000000" step="50000" value="500000" class="slider" oninput="updateDisplay('income')">
+            </div>
+            
+            <div class="form-group">
+                <label>Loan Amount: ₹<span id="loanDisplay">500000</span></label>
+                <input type="range" id="loanAmount" min="100000" max="5000000" step="50000" value="500000" class="slider" oninput="updateDisplay('loanAmount')">
+            </div>
+            
+            <div class="form-group">
+                <label>CIBIL Score: <span id="cibilDisplay">700</span></label>
+                <input type="range" id="cibilScore" min="300" max="900" step="10" value="700" class="slider" oninput="updateDisplay('cibilScore')">
+            </div>
+            
+            <div class="form-group">
+                <label>Residential Assets: ₹<span id="residentialDisplay">0</span></label>
+                <input type="range" id="residentialAssets" min="0" max="10000000" step="100000" value="0" class="slider" oninput="updateDisplay('residentialAssets')">
+            </div>
+            
+            <div class="form-group">
+                <label>Commercial Assets: ₹<span id="commercialDisplay">0</span></label>
+                <input type="range" id="commercialAssets" min="0" max="10000000" step="100000" value="0" class="slider" oninput="updateDisplay('commercialAssets')">
+            </div>
+            
+            <div class="form-group">
+                <label>Loan Term (months): <span id="termDisplay">12</span></label>
+                <input type="range" id="loanTerm" min="6" max="360" step="6" value="12" class="slider" oninput="updateDisplay('loanTerm')">
+            </div>
+            
+            <button onclick="simulate()" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Simulate Approval</button>
+        </div>
+        
+        <!-- Results Section -->
+        <div>
+            <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Prediction Results</h3>
+            
+            <div id="results" style="display: none;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="width: 200px; height: 200px; margin: 0 auto; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; transition: all 0.5s;" id="probabilityCircle">
+                        --
+                    </div>
+                    <h3 id="approvalStatus" style="margin-top: 1rem;">--</h3>
+                </div>
+                
+                <div id="adviceSection" style="background: var(--input-bg); padding: 1.5rem; border-radius: 10px; border-left: 4px solid #2a5298;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 1rem;">💡 Personalized Advice</h4>
+                    <div id="adviceList"></div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 10px;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📈 Quick Stats</h4>
+                    <p style="color: var(--text-secondary); margin: 0.3rem 0;">Loan-to-Income Ratio: <strong id="ltiRatio">--</strong></p>
+                    <p style="color: var(--text-secondary); margin: 0.3rem 0;">Monthly EMI (approx): <strong id="emiAmount">--</strong></p>
+                    <p style="color: var(--text-secondary); margin: 0.3rem 0;">Total Assets: <strong id="totalAssets">--</strong></p>
+                </div>
+            </div>
+            
+            <div id="loading" style="display: none; text-align: center; padding: 3rem;">
+                <div class="spinner"></div>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Analyzing your profile...</p>
+            </div>
+            
+            <div id="placeholder" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                <p>Adjust the parameters and click "Simulate Approval" to see results</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .slider {
+        width: 100%;
+        height: 8px;
+        border-radius: 5px;
+        background: linear-gradient(90deg, #e5e7eb 0%, #2a5298 100%);
+        outline: none;
+        opacity: 0.9;
+        transition: opacity 0.2s;
+        margin-top: 0.5rem;
+    }
+    
+    .slider:hover {
+        opacity: 1;
+    }
+    
+    .slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #2a5298;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .spinner {
+        border: 4px solid rgba(42, 82, 152, 0.1);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border-left-color: #2a5298;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    function updateDisplay(field) {
+        const value = document.getElementById(field).value;
+        const display = document.getElementById(field + 'Display');
+        
+        if (field === 'income' || field === 'loanAmount' || field.includes('Assets')) {
+            display.textContent = parseInt(value).toLocaleString('en-IN');
+        } else {
+            display.textContent = value;
+        }
+    }
+    
+    async function simulate() {
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+        
+        const data = {
+            income: parseFloat(document.getElementById('income').value),
+            loan_amount: parseFloat(document.getElementById('loanAmount').value),
+            cibil_score: parseInt(document.getElementById('cibilScore').value),
+            residential_assets: parseFloat(document.getElementById('residentialAssets').value),
+            commercial_assets: parseFloat(document.getElementById('commercialAssets').value),
+            loan_term: parseInt(document.getElementById('loanTerm').value)
+        };
+        
+        try {
+            const response = await fetch('/simulator', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            setTimeout(() => {
+                displayResults(result, data);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            }, 800);
+        } catch (error) {
+            alert('Error simulating. Please try again.');
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('placeholder').style.display = 'block';
+        }
+    }
+    
+    function displayResults(result, data) {
+        const circle = document.getElementById('probabilityCircle');
+        const status = document.getElementById('approvalStatus');
+        
+        circle.textContent = result.probability.toFixed(1) + '%';
+        
+        if (result.approved) {
+            circle.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            circle.style.color = 'white';
+            status.textContent = '✅ Likely to be Approved';
+            status.style.color = '#10b981';
+        } else {
+            circle.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+            circle.style.color = 'white';
+            status.textContent = '❌ May be Rejected';
+            status.style.color = '#ef4444';
+        }
+        
+        // Display advice
+        const adviceList = document.getElementById('adviceList');
+        adviceList.innerHTML = result.advice.map(a => `<p style="margin: 0.5rem 0; color: var(--text-secondary);">${a}</p>`).join('');
+        
+        // Calculate stats
+        const lti = (data.loan_amount / data.income).toFixed(2);
+        const monthlyIncome = data.income / 12;
+        const monthlyEMI = (data.loan_amount * 0.09 / 12) / (1 - Math.pow(1 + 0.09/12, -data.loan_term));
+        const totalAssets = data.residential_assets + data.commercial_assets;
+        
+        document.getElementById('ltiRatio').textContent = lti + 'x';
+        document.getElementById('emiAmount').textContent = '₹' + Math.round(monthlyEMI).toLocaleString('en-IN');
+        document.getElementById('totalAssets').textContent = '₹' + totalAssets.toLocaleString('en-IN');
+    }
+</script>
+{% endblock %}
