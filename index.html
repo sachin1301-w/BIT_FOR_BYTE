@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Loan Approval System</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #040b1f, #0a2a52);
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 35px;
+            border-radius: 18px;
+            border: 1px solid rgba(0, 140, 255, 0.6);
+            box-shadow: 0 0 30px rgba(0, 140, 255, 0.45);
+        }
+
+        h1 {
+            text-align: center;
+            color: #4da6ff;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+        label {
+            font-size: 14px;
+            color: #cfe3ff;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 11px;
+            border-radius: 10px;
+            border: 1px solid #4da6ff;
+            background-color: #081a33;
+            color: #ffffff;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            box-shadow: 0 0 12px #4da6ff;
+        }
+
+        button {
+            grid-column: span 2;
+            padding: 14px;
+            margin-top: 15px;
+            background: linear-gradient(90deg, #007bff, #00c6ff);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 17px;
+            cursor: pointer;
+            transition: 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.03);
+            box-shadow: 0 0 18px #00c6ff;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 22px;
+            border-radius: 14px;
+            text-align: center;
+            background: rgba(0, 123, 255, 0.18);
+            border: 1px solid #4da6ff;
+        }
+
+        .approved {
+            color: #00ff9c;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .rejected {
+            color: #ff4d4d;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        @media(max-width: 768px) {
+            form {
+                grid-template-columns: 1fr;
+            }
+
+            button {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>💳 Smart Loan Approval System</h1>
+
+    <form action="/predict" method="post">
+
+        <label>No. of Dependents</label>
+        <input type="number" name="no_of_dependents" required>
+
+        <label>Education</label>
+        <select name="education">
+            <option>Graduate</option>
+            <option>Not Graduate</option>
+        </select>
+
+        <label>Self Employed</label>
+        <select name="self_employed">
+            <option>No</option>
+            <option>Yes</option>
+        </select>
+
+        <label>Annual Income</label>
+        <input type="number" name="income_annum" required>
+
+        <label>Loan Amount</label>
+        <input type="number" name="loan_amount" required>
+
+        <label>Loan Term (Years)</label>
+        <input type="number" name="loan_term" required>
+
+        <label>CIBIL Score</label>
+        <input type="number" name="cibil_score" required>
+
+        <label>Residential Assets Value</label>
+        <input type="number" name="residential_assets_value" required>
+
+        <label>Commercial Assets Value</label>
+        <input type="number" name="commercial_assets_value" required>
+
+        <label>Luxury Assets Value</label>
+        <input type="number" name="luxury_assets_value" required>
+
+        <label>Bank Assets Value</label>
+        <input type="number" name="bank_asset_value" required>
+
+        <button type="submit">🔍 Predict Loan Status</button>
+
+    </form>
+
+    {% if prediction %}
+    <div class="result">
+        <div class="{{ 'approved' if 'Approved' in prediction else 'rejected' }}">
+            {{ prediction }}
+        </div>
+        <p>Approval Probability: <strong>{{ probability }}%</strong></p>
+    </div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>
