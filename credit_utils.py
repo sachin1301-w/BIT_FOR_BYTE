@@ -25,13 +25,14 @@ def calculate_credit_health_score(user):
             score += 10
         
         # Loan to Income Ratio (30 points)
-        loan_to_income = latest_prediction.loan_amount / (latest_prediction.income_annum / 12)
-        if loan_to_income <= 3:
-            score += 30
-        elif loan_to_income <= 5:
-            score += 20
-        elif loan_to_income <= 10:
-            score += 10
+        if latest_prediction.income_annum > 0:
+            loan_to_income = latest_prediction.loan_amount / (latest_prediction.income_annum / 12)
+            if loan_to_income <= 3:
+                score += 30
+            elif loan_to_income <= 5:
+                score += 20
+            elif loan_to_income <= 10:
+                score += 10
         
         # Asset Coverage (20 points)
         total_assets = (latest_prediction.residential_assets_value + 
@@ -126,16 +127,17 @@ def analyze_credit_issues(user):
         })
     
     # High Loan Amount
-    monthly_income = latest_prediction.income_annum / 12
-    loan_amount = latest_prediction.loan_amount
-    if loan_amount > monthly_income * 10:
-        issues.append({
-            'icon': '💰',
-            'issue': 'High Loan-to-Income Ratio',
-            'explanation': f'Your loan amount (₹{loan_amount:,.0f}) is very high compared to your monthly income (₹{monthly_income:,.0f}).',
-            'severity': 'warning',
-            'impact': 'High'
-        })
+    if latest_prediction.income_annum > 0:
+        monthly_income = latest_prediction.income_annum / 12
+        loan_amount = latest_prediction.loan_amount
+        if loan_amount > monthly_income * 10:
+            issues.append({
+                'icon': '💰',
+                'issue': 'High Loan-to-Income Ratio',
+                'explanation': f'Your loan amount (₹{loan_amount:,.0f}) is very high compared to your monthly income (₹{monthly_income:,.0f}).',
+                'severity': 'warning',
+                'impact': 'High'
+            })
     
     # Insufficient Assets
     total_assets = (latest_prediction.residential_assets_value + 
@@ -199,20 +201,26 @@ def calculate_loan_readiness(user):
         factors.append({'name': f'CIBIL Score {latest_prediction.cibil_score} (Need 700+)', 'status': False})
     
     # Income Check
-    monthly_income = latest_prediction.income_annum / 12
-    if monthly_income >= 50000:
-        readiness += 25
-        factors.append({'name': f'Stable Income ₹{monthly_income:,.0f}/month', 'status': True})
+    if latest_prediction.income_annum > 0:
+        monthly_income = latest_prediction.income_annum / 12
+        if monthly_income >= 50000:
+            readiness += 25
+            factors.append({'name': f'Stable Income ₹{monthly_income:,.0f}/month', 'status': True})
+        else:
+            factors.append({'name': f'Income ₹{monthly_income:,.0f} (Recommended: ₹50,000+)', 'status': False})
     else:
-        factors.append({'name': f'Income ₹{monthly_income:,.0f} (Recommended: ₹50,000+)', 'status': False})
+        factors.append({'name': 'Income Not Provided', 'status': False})
     
     # Loan-to-Income Ratio
-    loan_to_income = latest_prediction.loan_amount / (latest_prediction.income_annum / 12)
-    if loan_to_income <= 5:
-        readiness += 25
-        factors.append({'name': 'Manageable Loan Amount', 'status': True})
+    if latest_prediction.income_annum > 0:
+        loan_to_income = latest_prediction.loan_amount / (latest_prediction.income_annum / 12)
+        if loan_to_income <= 5:
+            readiness += 25
+            factors.append({'name': 'Manageable Loan Amount', 'status': True})
+        else:
+            factors.append({'name': 'Loan Amount Too High vs Income', 'status': False})
     else:
-        factors.append({'name': 'Loan Amount Too High vs Income', 'status': False})
+        factors.append({'name': 'Cannot Calculate Loan-to-Income Ratio', 'status': False})
     
     # Asset Coverage
     total_assets = (latest_prediction.residential_assets_value + 
